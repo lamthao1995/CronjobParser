@@ -21,6 +21,21 @@ class TestCronParser(unittest.TestCase):
         result = self.parser.parse_cron_expression(cron_expression)
         self.assertEqual(result, expected_output)
 
+    def test_valid_cron_expression_with_year(self):
+        """Test a valid cron expression."""
+        cron_expression = "*/15 0 1,15 * 1-5 2011,2012 /usr/bin/find -v"
+        expected_output = {
+            "minute": [0, 15, 30, 45],
+            "hour": [0],
+            "day of month": [1, 15],
+            "month": list(range(1, 13)),
+            "day of week": [1, 2, 3, 4, 5],
+            "command": "/usr/bin/find -v",
+            "year": [2011, 2012]
+        }
+        result = self.parser.parse_cron_expression(cron_expression)
+        self.assertEqual(result, expected_output)
+
     def test_asterisk(self):
         """Test handling of '*' symbol."""
         cron_expression = "* * * * * /bin/echo"
@@ -31,6 +46,20 @@ class TestCronParser(unittest.TestCase):
             "month": list(range(1, 13)),
             "day of week": list(range(0, 7)),
             "command": "/bin/echo"
+        }
+        result = self.parser.parse_cron_expression(cron_expression)
+        self.assertEqual(result, expected_output)
+
+    def test_special_cmd(self):
+        """Test handling of '*' symbol."""
+        cron_expression = "* * * * * /bin/echo -v"
+        expected_output = {
+            "minute": list(range(0, 60)),
+            "hour": list(range(0, 24)),
+            "day of month": list(range(1, 32)),
+            "month": list(range(1, 13)),
+            "day of week": list(range(0, 7)),
+            "command": "/bin/echo -v"
         }
         result = self.parser.parse_cron_expression(cron_expression)
         self.assertEqual(result, expected_output)

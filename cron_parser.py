@@ -1,14 +1,16 @@
 import sys
 from typing import *
 
-LENGTH_FIELDS = 6
+AT_LEAST_LENGTH_FIELDS = 6
+CMD_INDEX = 5
 
 TIME_RANGE_MAP = {
     "minute": [0, 59],
     "hour": [0, 23],
     "day of month": [1, 31],
     "month": [1, 12],
-    "day of week": [0, 6]
+    "day of week": [0, 6],
+    "year": [1, 9999]
 }
 
 
@@ -36,6 +38,15 @@ class CronParser:
     def __init__(self):
         pass
 
+    def _get_cmd(self, fields: List[str], is_year_part_exist: bool):
+        idx = CMD_INDEX + (1 if is_year_part_exist else 0)
+        return " ".join(fields[idx:])
+
+    def is_year_part_exist(self, fields):
+        if fields[CMD_INDEX][0] == Symbol.SLASH:
+            return False
+        return True
+
     def parse_cron_expression(self, cron_exp_string: str) -> dict:
         """
         Parses a crontab expression and returns a dictionary with the parsed fields.
@@ -46,15 +57,22 @@ class CronParser:
         :raises ValueError: If a field contains values outside its valid range.
         """
         fields = list(cron_exp_string.split())
-        if len(fields) != LENGTH_FIELDS:
+        if len(fields) < AT_LEAST_LENGTH_FIELDS:
             raise CronParserException("wrong data for cron parser : " + cron_exp_string)
-
+        is_year_exist = self.is_year_part_exist(fields)
         fields_map = {
-            "command": fields[5]
+            "command": self._get_cmd(fields, is_year_exist)
         }
+
+
+     #   print("data and is_year_exist ", is_year_exist, fields[CMD_INDEX])
+
         for i, (f_name, range_list) in enumerate(TIME_RANGE_MAP.items()):
+            if not is_year_exist and i == len(TIME_RANGE_MAP) - 1:
+                break
             field_value = fields[i]
             fields_map[f_name] = self._get_data_with_symbol(field_value, *range_list)
+          #  print(field_value, fields_map, range_list)
             if not (range_list[0] <= min(fields_map[f_name]) and max(fields_map[f_name]) <= range_list[1]):
                 raise ValueError
         return fields_map
@@ -70,8 +88,32 @@ class CronParser:
         """
         if field == Symbol.ASTERISK:
             return CronParser.get_data_with_asterisk(start, end)
+        if Symbol.COMMA and (Symbol.SLASH in field or Symbol.HYPHEN in field):
+            parts = field.split(Symbol.COMMA)
+            result = []
+
+            for part in parts:
+                if Symbol.HYPHEN in part and Symbol.SLASH in part:
+                    range_part, step = part.split(Symbol.SLASH)
+                    range_values = self._get_data_with_symbol(range_part, start, end)
+                    step = int(step)
+                    result.extend([x for x in range_values if (x - range_values[0]) % step == 0])
+
+                elif Symbol.SLASH in part:
+                    range_part, step = part.split(Symbol.SLASH)
+                    range_values = self._get_data_with_symbol(range_part, start, end)
+                    step = int(step)
+                    result.extend([x for x in range_values if (x - range_values[0]) % step == 0])
+
+                elif Symbol.HYPHEN in part:
+                    result.extend(CronParser.get_data_with_hyphen(part))
+                else:
+                    result.append(int(part))
+            return result
+
         if Symbol.COMMA in field:
             return CronParser.get_data_with_comma(field)
+
         if Symbol.HYPHEN in field and Symbol.SLASH in field:
             # Handle range with step, e.g., "0-30/5"
             range_part, step = field.split(Symbol.SLASH)
