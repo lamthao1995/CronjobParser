@@ -13,10 +13,16 @@ TIME_RANGE_MAP = {
 
 
 class CronParserException(Exception):
+    """
+    Custom exception class for handling errors related to cron expression parsing.
+    """
     pass
 
 
 class Symbol:
+    """
+    Class to hold special symbols used in crontab expressions.
+    """
     ASTERISK = "*"
     HYPHEN = "-"
     COMMA = ","
@@ -24,10 +30,21 @@ class Symbol:
 
 
 class CronParser:
+    """
+    A class to parse and validate crontab expressions.
+    """
     def __init__(self):
         pass
 
     def parse_cron_expression(self, cron_exp_string: str) -> dict:
+        """
+        Parses a crontab expression and returns a dictionary with the parsed fields.
+
+        :param cron_exp_string: The crontab expression string (e.g., "*/5 0-23 * * * /command").
+        :return: A dictionary with parsed fields as keys and their respective values as lists.
+        :raises CronParserException: If the number of fields is incorrect.
+        :raises ValueError: If a field contains values outside its valid range.
+        """
         fields = list(cron_exp_string.split())
         if len(fields) != LENGTH_FIELDS:
             raise CronParserException("wrong data for cron parser : " + cron_exp_string)
@@ -43,6 +60,14 @@ class CronParser:
         return fields_map
 
     def _get_data_with_symbol(self, field: str, start: int, end: int) -> List[int]:
+        """
+        Processes a crontab field containing special symbols and returns the resolved values.
+
+        :param field: The crontab field string (e.g., "*/5", "1,2,3", "0-10").
+        :param start: The start of the valid range for the field.
+        :param end: The end of the valid range for the field.
+        :return: A list of integers representing the resolved values for the field.
+        """
         if field == Symbol.ASTERISK:
             return CronParser.get_data_with_asterisk(start, end)
         if Symbol.COMMA in field:
@@ -65,14 +90,33 @@ class CronParser:
 
     @staticmethod
     def get_data_with_asterisk(start: int, end: int) -> List[int]:
+        """
+        Resolves an asterisk (*) to a range of integers.
+
+        :param start: The start of the range.
+        :param end: The end of the range.
+        :return: A list of integers representing all values in the range.
+        """
         return list(range(start, end + 1))
 
     @staticmethod
     def get_data_with_comma(field: str) -> List[int]:
+        """
+        Resolves a comma-separated list to individual integers.
+
+        :param field: The crontab field string containing comma-separated values (e.g., "1,2,3").
+        :return: A sorted list of integers without duplicates.
+        """
         return sorted(set(int(v) for v in field.split(Symbol.COMMA)))
 
     @staticmethod
     def get_data_with_hyphen(field: str) -> List[int]:
+        """
+        Resolves a hyphen-separated range to individual integers.
+
+        :param field: The crontab field string containing a range (e.g., "1-5").
+        :return: A list of integers representing the range.
+        """
         start, end = (int(v) for v in field.split(Symbol.HYPHEN))
         return list(range(start, end + 1))
 
